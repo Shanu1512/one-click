@@ -1,7 +1,0 @@
----
-- name: Configure MySQL Server
-  hosts: tag_Role_db_master   # uses Role tag from EC2
-  become: true
-  gather_facts: yes
-  roles:
-    - mysql
