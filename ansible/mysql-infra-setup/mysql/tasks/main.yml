@@ -1,0 +1,98 @@
+---
+- name: Install MySQL/MariaDB server and Python client
+  package:
+    name: "{{ ubuntu_packages if ansible_os_family == 'Debian' else rhel_packages }}"
+    state: present
+    update_cache: yes
+
+- name: Ensure Python MySQL driver is installed (for community.mysql)
+  package:
+    name: python3-pymysql
+    state: present
+
+- name: Ensure MySQL/MariaDB service is running
+  service:
+    name: "{{ 'mysql' if ansible_os_family == 'Debian' else 'mariadb' }}"
+    state: started
+    enabled: yes
+
+- name: Wait for MySQL socket to be ready
+  wait_for:
+    path: /var/run/mysqld/mysqld.sock
+    state: present
+    timeout: 30
+
+- name: Ensure MySQL root user exists with password
+  community.mysql.mysql_user:
+    name: root
+    host: localhost
+    password: "{{ mysql_root_password }}"
+    plugin: mysql_native_password
+    priv: "*.*:ALL,GRANT"
+    state: present
+    check_implicit_admin: yes
+    # Use socket login (works when root has no password yet)
+    login_unix_socket: "{{ '/var/run/mysqld/mysqld.sock' if ansible_os_family == 'Debian' else '/var/lib/mysql/mysql.sock' }}"
+    login_user: root
+  no_log: true
+  ignore_errors: true
+
+
+# Create databases
+- name: Create databases
+  community.mysql.mysql_db:
+    name: "{{ item.database }}"
+    state: present
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+  loop: "{{ mysql_users }}"
+
+# Create MySQL users
+- name: Create MySQL users
+  community.mysql.mysql_user:
+    name: "{{ item.name }}"
+    password: "{{ item.password }}"
+    host: "%"
+    priv: "{{ item.priv }}"
+    state: present
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+  loop: "{{ mysql_users }}"
+
+# Create table employees with unique constraint
+- name: Create table "{{ mysql_table_name }}"
+  community.mysql.mysql_query:
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+    login_db: "{{ mysql_users[0].database }}"
+    query: |
+      CREATE TABLE IF NOT EXISTS {{ mysql_table_name }} (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(15) NOT NULL,
+        role VARCHAR(20),
+        salary DECIMAL(10,2),
+        joining_date DATE,
+        location VARCHAR(100),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_employee (name, role, salary, joining_date, location)
+      );
+
+# Insert sample data into employees
+- name: Insert sample data into "{{ mysql_table_name }}"
+  community.mysql.mysql_query:
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+    login_db: "{{ mysql_users[0].database }}"
+    query: >
+      INSERT INTO {{ mysql_table_name }}
+      (name, role, salary, joining_date, location)
+      VALUES ('{{ item.name }}', '{{ item.role }}', {{ item.salary }},
+              '{{ item.joining_date }}', '{{ item.location }}')
+      ON DUPLICATE KEY UPDATE
+        role = VALUES(role),
+        salary = VALUES(salary),
+        joining_date = VALUES(joining_date),
+        location = VALUES(location);
+  loop: "{{ mysql_table_rows }}"
+  loop_control:
+    label: "{{ item.name }}"
