@@ -1,0 +1,7 @@
+#SPDX-License-Identifier: MIT-0
+---
+# handlers file for mysql
+- name: Restart MySQL
+  service:
+    name: "{{ 'mysql' if ansible_os_family == 'Debian' else 'mariadb' }}"
+    state: restarted

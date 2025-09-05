@@ -1,0 +1,12 @@
+# Terraform
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/*.tfplan
+terraform/.terraform/
+
+# Ansible
+ansible/*.retry
+ansible/vars/*.yml   # if you have sensitive vars
+
+# General
+*.log
