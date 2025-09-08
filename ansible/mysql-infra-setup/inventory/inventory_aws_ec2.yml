@@ -1,4 +1,19 @@
-plugin: amazon.aws.aws_ec2
+# plugin: amazon.aws.aws_ec2
+# regions:
+#   - us-east-1
+# keyed_groups:
+#   - key: tags.Role
+#     prefix: tag_Role
+# hostnames:
+#   - private-ip-address
+# compose:
+#   ansible_host: private_ip_address
+#   ansible_user: ubuntu
+#   ansible_ssh_private_key_file: /var/lib/jenkins/tfkey.pem
+
+
+  
+plugin: amazon.aws.ec2
 regions:
   - us-east-1
 keyed_groups:
@@ -8,5 +23,11 @@ hostnames:
   - private-ip-address
 compose:
   ansible_host: private_ip_address
-  ansible_user: ubuntu
-  ansible_ssh_private_key_file: /var/lib/jenkins/tfkey.pem
+groups:
+  db_master: "'db-master' in (tags.Role|default(''))"
+
+# Add bastion/jump host settings
+hostvars:
+  db_master:
+    ansible_user: ubuntu
+    ansible_ssh_common_args: "-o ProxyCommand='ssh -i /var/lib/jenkins/.ssh/your-key.pem -W %h:%p ubuntu@3.89.250.158'"
