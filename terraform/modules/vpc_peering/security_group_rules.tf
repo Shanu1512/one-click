@@ -18,20 +18,21 @@ resource "aws_security_group_rule" "requester_icmp" {
 }
 
 
-resource "aws_security_group_rule" "requester_tcp" {
+# All protocols
+resource "aws_security_group_rule" "requester_all" {
   type                     = "ingress"
-  from_port                = 0        # start of TCP port range
-  to_port                  = 65535    # end of TCP port range
-  protocol                 = "tcp"
+  protocol                 = "-1"
+  from_port                = 0
+  to_port                  = 0
   security_group_id        = var.requester_sg_id
   source_security_group_id = var.accepter_sg_id
 }
 
-resource "aws_security_group_rule" "accepter_tcp" {
+resource "aws_security_group_rule" "accepter_all" {
   type                     = "ingress"
+  protocol                 = "-1"
   from_port                = 0
-  to_port                  = 65535
-  protocol                 = "tcp"
+  to_port                  = 0
   security_group_id        = var.accepter_sg_id
   source_security_group_id = var.requester_sg_id
 }
