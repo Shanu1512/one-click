@@ -10,5 +10,5 @@ peer_vpc_id        = "vpc-0cc69505ff3d3c354" # Jenkins VPC ID
 jenkins_vpc_id     = "vpc-0cc69505ff3d3c354"
 jenkins_vpc_cidr   = "10.0.0.0/24"
 jenkins_rt_ids     = ["rtb-0b32a16eee5702eb1"]
-jenkins_sg_id      = "sg-0ad181dae1480d576"
+jenkins_sg_id      = "sg-0d00c4cb620c9a0af"
 
