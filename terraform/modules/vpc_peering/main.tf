@@ -5,7 +5,7 @@ resource "aws_vpc_peering_connection" "this" {
   auto_accept = true
 
   tags = {
-    Name = "mgmt-jenkins-peering"
+    Name = "db-management-peering"
   }
 }
 
