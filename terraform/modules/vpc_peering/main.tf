@@ -11,7 +11,8 @@ resource "aws_vpc_peering_connection" "this" {
 
 # Routes from requester to accepter
 resource "aws_route" "requester_to_accepter" {
-  for_each                  = toset(var.requester_rt_ids)
+  for_each = { for idx, rt_id in var.requester_rt_ids : idx => rt_id }
+
   route_table_id            = each.value
   destination_cidr_block    = var.accepter_cidr
   vpc_peering_connection_id = aws_vpc_peering_connection.this.id
@@ -19,7 +20,8 @@ resource "aws_route" "requester_to_accepter" {
 
 # Routes from accepter to requester
 resource "aws_route" "accepter_to_requester" {
-  for_each                  = toset(var.accepter_rt_ids)
+  for_each = { for idx, rt_id in var.accepter_rt_ids : idx => rt_id }
+
   route_table_id            = each.value
   destination_cidr_block    = var.requester_cidr
   vpc_peering_connection_id = aws_vpc_peering_connection.this.id
