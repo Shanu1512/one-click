@@ -126,7 +126,7 @@ module "db_master" {
 # -----------------------------
 resource "aws_vpc_peering_connection" "this" {
   vpc_id      = module.vpc.vpc_id
-  peer_vpc_id = var.peer_vpc_id
+  peer_vpc_id = var.jenkins_vpc_id
   auto_accept = true
 }
 
