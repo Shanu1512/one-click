@@ -17,21 +17,21 @@ resource "aws_security_group_rule" "requester_icmp" {
   source_security_group_id = var.accepter_sg_id
 }
 
-# Allow all traffic (TCP, UDP, ICMP) between requester and accepter
-resource "aws_security_group_rule" "requester_all" {
+
+resource "aws_security_group_rule" "requester_tcp" {
   type                     = "ingress"
-  from_port                = 0
-  to_port                  = 0
-  protocol                 = "-1"
+  from_port                = 0        # start of TCP port range
+  to_port                  = 65535    # end of TCP port range
+  protocol                 = "tcp"
   security_group_id        = var.requester_sg_id
   source_security_group_id = var.accepter_sg_id
 }
 
-resource "aws_security_group_rule" "accepter_all" {
+resource "aws_security_group_rule" "accepter_tcp" {
   type                     = "ingress"
   from_port                = 0
-  to_port                  = 0
-  protocol                 = "-1"
+  to_port                  = 65535
+  protocol                 = "tcp"
   security_group_id        = var.accepter_sg_id
   source_security_group_id = var.requester_sg_id
 }
