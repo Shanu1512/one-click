@@ -1,4 +1,17 @@
 ---
+
+- name: Configure MySQL Server
+  hosts: tag_Role_db_master
+  become: yes
+  vars_files:
+    - ../group_vars/tag_Role_db_master.yml
+
+  pre_tasks:
+    - name: Wait until hosts are reachable via SSH
+      wait_for_connection:
+        timeout: 300
+
+
 - name: Install MySQL/MariaDB server and Python client
   package:
     name: "{{ ubuntu_packages if ansible_os_family == 'Debian' else rhel_packages }}"
