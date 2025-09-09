@@ -1,4 +1,4 @@
-# Allow ICMP (ping) between requester and accepter
+# ICMP (ping) allowed
 resource "aws_security_group_rule" "accepter_icmp" {
   type                     = "ingress"
   from_port                = -1
@@ -17,8 +17,8 @@ resource "aws_security_group_rule" "requester_icmp" {
   source_security_group_id = var.accepter_sg_id
 }
 
-# Allow all TCP
-resource "aws_security_group_rule" "requester_tcp" {
+# Allow all traffic (TCP, UDP, ICMP) between requester and accepter
+resource "aws_security_group_rule" "requester_all" {
   type                     = "ingress"
   from_port                = 0
   to_port                  = 0
@@ -27,7 +27,7 @@ resource "aws_security_group_rule" "requester_tcp" {
   source_security_group_id = var.accepter_sg_id
 }
 
-resource "aws_security_group_rule" "accepter_tcp" {
+resource "aws_security_group_rule" "accepter_all" {
   type                     = "ingress"
   from_port                = 0
   to_port                  = 0
