@@ -7,6 +7,7 @@ pipeline {
     }
 
     stages {
+
         stage('Checkout Code') {
             steps {
                 git branch: 'main', url: 'https://github.com/Shanu1512/one-click.git'
@@ -51,51 +52,44 @@ pipeline {
                     ]]) {
                         sh '''
                             set -e
-                            # terraform apply -auto-approve tfplan
-                            # Export the new bastion public IP
-                            export BASTION_IP=$(terraform output -raw bastion_public_ip)
-                            echo "BASTION_IP=${BASTION_IP}" > ../bastion_ip.env
+                            terraform apply -auto-approve tfplan
+                            # Capture bastion public IP
+                            echo "BASTION_IP=$(terraform output -raw bastion_public_ip)" > ../bastion_ip.env
                         '''
                     }
                 }
             }
         }
 
-       stage('Configure MySQL with Ansible') {
-    steps {
-        dir('ansible') {
-            withCredentials([
-                sshUserPrivateKey(credentialsId: 'ssh_key', keyFileVariable: 'SSH_KEY'),
-                [$class: 'AmazonWebServicesCredentialsBinding',
-                 credentialsId: 'aws-credentials-id',
-                 accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-                 secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']
-            ]) {
-                sh '''
-                    #!/bin/bash
-                    set -e
+        stage('Configure MySQL with Ansible') {
+            steps {
+                dir('ansible') {
+                    withCredentials([
+                        sshUserPrivateKey(credentialsId: 'ssh_key', keyFileVariable: 'SSH_KEY'),
+                        [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials-id']
+                    ]) {
+                        sh '''
+                            set -e
+                            # Read BASTION_IP from file
+                            BASTION_IP=$(cat ../bastion_ip.env | cut -d'=' -f2)
 
-                    # Ensure we are using bash explicitly
-                    BASTION_ENV="../bastion_ip.env"
-                    if [ -f "$BASTION_ENV" ]; then
-                        source "$BASTION_ENV"
-                    else
-                        echo "ERROR: $BASTION_ENV not found!"
-                        exit 1
-                    fi
+                            # Wait for SSH to be ready
+                            echo "Waiting for SSH on $BASTION_IP..."
+                            until nc -zv $BASTION_IP 22 >/dev/null 2>&1; do
+                                echo "SSH not ready, waiting 5s..."
+                                sleep 5
+                            done
+                            echo "SSH is ready, proceeding with Ansible playbook..."
 
-                    echo "Using BASTION_IP=${BASTION_IP}"
-
-                    ansible-playbook -i mysql-infra-setup/inventory/inventory_aws_ec2.yml \
-                        mysql-infra-setup/sql_playbook.yml \
-                        -u ubuntu --private-key "$SSH_KEY" \
-                        --extra-vars "bastion_ip=${BASTION_IP}"
-                '''
+                            ansible-playbook -i mysql-infra-setup/inventory/inventory_aws_ec2.yml \
+                                mysql-infra-setup/sql_playbook.yml \
+                                -u ubuntu --private-key "$SSH_KEY" \
+                                --extra-vars "bastion_ip=${BASTION_IP}"
+                        '''
+                    }
+                }
             }
         }
-    }
-}
-
 
         stage('Approval for Destroy') {
             steps {
