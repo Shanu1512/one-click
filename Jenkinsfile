@@ -18,7 +18,9 @@ pipeline {
                 dir('terraform') {
                     withCredentials([[
                         $class: 'AmazonWebServicesCredentialsBinding',
-                        credentialsId: 'aws-credentials-id'
+                        credentialsId: 'aws-credentials-id',
+                        accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                        secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
                     ]]) {
                         sh '''
                             set -e
@@ -33,7 +35,7 @@ pipeline {
         stage('Approval for Apply') {
             steps {
                 timeout(time: 30, unit: 'MINUTES') {
-                    input message: 'Approve Terraform Apply?'
+                    input message: '✅ Approve Terraform Apply?'
                 }
             }
         }
@@ -43,7 +45,9 @@ pipeline {
                 dir('terraform') {
                     withCredentials([[
                         $class: 'AmazonWebServicesCredentialsBinding',
-                        credentialsId: 'aws-credentials-id'
+                        credentialsId: 'aws-credentials-id',
+                        accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                        secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
                     ]]) {
                         sh '''
                             set -e
@@ -59,7 +63,10 @@ pipeline {
                 dir('ansible') {
                     withCredentials([
                         sshUserPrivateKey(credentialsId: 'ssh_key', keyFileVariable: 'SSH_KEY'),
-                        [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials-id']
+                        [$class: 'AmazonWebServicesCredentialsBinding',
+                         credentialsId: 'aws-credentials-id',
+                         accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                         secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']
                     ]) {
                         sh '''
                             set -e
@@ -76,7 +83,10 @@ pipeline {
                 dir('ansible') {
                     withCredentials([
                         sshUserPrivateKey(credentialsId: 'ssh_key', keyFileVariable: 'SSH_KEY'),
-                        [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials-id']
+                        [$class: 'AmazonWebServicesCredentialsBinding',
+                         credentialsId: 'aws-credentials-id',
+                         accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                         secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']
                     ]) {
                         sh '''
                             set -e
@@ -92,7 +102,7 @@ pipeline {
         stage('Approval for Destroy') {
             steps {
                 timeout(time: 30, unit: 'MINUTES') {
-                    input message: 'Approve Terraform Destroy?'
+                    input message: '⚠️ Approve Terraform Destroy?'
                 }
             }
         }
@@ -102,7 +112,9 @@ pipeline {
                 dir('terraform') {
                     withCredentials([[
                         $class: 'AmazonWebServicesCredentialsBinding',
-                        credentialsId: 'aws-credentials-id'
+                        credentialsId: 'aws-credentials-id',
+                        accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                        secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
                     ]]) {
                         sh '''
                             set -e
@@ -116,7 +128,7 @@ pipeline {
 
     post {
         always {
-            echo '✅ Pipeline finished.'
+            echo '🚀 Pipeline finished.'
         }
     }
 }
