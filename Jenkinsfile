@@ -51,7 +51,7 @@ pipeline {
                     ]]) {
                         sh '''
                             set -e
-                            terraform apply -auto-approve tfplan
+                            # terraform apply -auto-approve tfplan
                             # Export the new bastion public IP
                             export BASTION_IP=$(terraform output -raw bastion_public_ip)
                             echo "BASTION_IP=${BASTION_IP}" > ../bastion_ip.env
