@@ -72,8 +72,8 @@ pipeline {
                          secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']
                     ]) {
                         sh '''
+                            #!/bin/bash
                             set -e
-                            # Load bastion IP
                             source ../bastion_ip.env
                             ansible-playbook -i mysql-infra-setup/inventory/inventory_aws_ec2.yml \
                                 mysql-infra-setup/sql_playbook.yml \
