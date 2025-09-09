@@ -13,7 +13,7 @@ pipeline {
             }
         }
 
-        stage('Terraform Init & Plan') {
+        stage('Terraform Init & Reconfigure') {
             steps {
                 dir('terraform') {
                     withCredentials([[
@@ -24,8 +24,27 @@ pipeline {
                     ]]) {
                         sh '''
                             set -e
-                            terraform init
-                            terraform plan -out=tfplan
+                            echo "🔹 Initializing Terraform with -reconfigure..."
+                            terraform init -reconfigure
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Terraform Plan (Safe Check)') {
+            steps {
+                dir('terraform') {
+                    withCredentials([[
+                        $class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: 'aws-credentials-id',
+                        accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                        secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                    ]]) {
+                        sh '''
+                            set -e
+                            echo "🔹 Running Terraform Plan..."
+                            terraform plan -out=tfplan -input=false
                         '''
                     }
                 }
@@ -51,6 +70,7 @@ pipeline {
                     ]]) {
                         sh '''
                             set -e
+                            echo "🔹 Applying Terraform Plan..."
                             terraform apply -auto-approve tfplan
                         '''
                     }
@@ -118,6 +138,7 @@ pipeline {
                     ]]) {
                         sh '''
                             set -e
+                            echo "🔹 Destroying Terraform Infrastructure..."
                             terraform destroy -auto-approve
                         '''
                     }
