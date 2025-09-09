@@ -61,29 +61,41 @@ pipeline {
             }
         }
 
-        stage('Configure MySQL with Ansible') {
-            steps {
-                dir('ansible') {
-                    withCredentials([
-                        sshUserPrivateKey(credentialsId: 'ssh_key', keyFileVariable: 'SSH_KEY'),
-                        [$class: 'AmazonWebServicesCredentialsBinding',
-                         credentialsId: 'aws-credentials-id',
-                         accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-                         secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']
-                    ]) {
-                        sh '''
-                            #!/bin/bash
-                            set -e
-                            source ../bastion_ip.env
-                            ansible-playbook -i mysql-infra-setup/inventory/inventory_aws_ec2.yml \
-                                mysql-infra-setup/sql_playbook.yml \
-                                -u ubuntu --private-key $SSH_KEY \
-                                --extra-vars "bastion_ip=${BASTION_IP}"
-                        '''
-                    }
-                }
+       stage('Configure MySQL with Ansible') {
+    steps {
+        dir('ansible') {
+            withCredentials([
+                sshUserPrivateKey(credentialsId: 'ssh_key', keyFileVariable: 'SSH_KEY'),
+                [$class: 'AmazonWebServicesCredentialsBinding',
+                 credentialsId: 'aws-credentials-id',
+                 accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                 secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']
+            ]) {
+                sh '''
+                    #!/bin/bash
+                    set -e
+
+                    # Ensure we are using bash explicitly
+                    BASTION_ENV="../bastion_ip.env"
+                    if [ -f "$BASTION_ENV" ]; then
+                        source "$BASTION_ENV"
+                    else
+                        echo "ERROR: $BASTION_ENV not found!"
+                        exit 1
+                    fi
+
+                    echo "Using BASTION_IP=${BASTION_IP}"
+
+                    ansible-playbook -i mysql-infra-setup/inventory/inventory_aws_ec2.yml \
+                        mysql-infra-setup/sql_playbook.yml \
+                        -u ubuntu --private-key "$SSH_KEY" \
+                        --extra-vars "bastion_ip=${BASTION_IP}"
+                '''
             }
         }
+    }
+}
+
 
         stage('Approval for Destroy') {
             steps {
