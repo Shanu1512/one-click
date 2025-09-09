@@ -24,23 +24,3 @@ resource "aws_route" "accepter_to_requester" {
   destination_cidr_block    = var.requester_cidr
   vpc_peering_connection_id = aws_vpc_peering_connection.this.id
 }
-
-# # Security group ingress rules (requester)
-# resource "aws_security_group_rule" "req_icmp" {
-#   type              = "ingress"
-#   from_port         = -1
-#   to_port           = -1
-#   protocol          = "icmp"
-#   cidr_blocks       = [var.accepter_cidr]
-#   security_group_id = var.requester_sg_id
-# }
-
-# # Security group ingress rules (accepter)
-# resource "aws_security_group_rule" "acc_icmp" {
-#   type              = "ingress"
-#   from_port         = -1
-#   to_port           = -1
-#   protocol          = "icmp"
-#   cidr_blocks       = [var.requester_cidr]
-#   security_group_id = var.accepter_sg_id
-# }
