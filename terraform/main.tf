@@ -3,7 +3,7 @@
 # -----------------------------
 module "vpc" {
   source     = "./modules/vpc"
-  name       = "mgmt-vpc"
+  name       = "db-vpc"
   cidr_block = var.vpc_cidr
 }
 
@@ -12,7 +12,7 @@ module "vpc" {
 # -----------------------------
 module "subnet" {
   source             = "./modules/subnet"
-  name               = "mgmt-subnet"
+  name               = "db-subnet"
   vpc_id             = module.vpc.vpc_id
   public_subnets     = var.public_subnets
   private_subnets    = var.private_subnets
@@ -25,7 +25,7 @@ module "subnet" {
 module "igw" {
   source = "./modules/igw"
   vpc_id = module.vpc.vpc_id
-  name   = "mgmt-igw"
+  name   = "db-igw"
 }
 # -----------------------------
 # NAT Gateway
@@ -53,7 +53,7 @@ module "route_tables" {
 module "db_sg" {
   source = "./modules/security_group"
   vpc_id = module.vpc.vpc_id
-  name   = "mgmt-db-sg"
+  name   = "db-sg"
   ingress_rules = [
     { from_port = 22, to_port = 22, protocol = "tcp", cidr_blocks = ["10.1.0.0/16"] },
     { from_port = 3306, to_port = 3306, protocol = "tcp", cidr_blocks = ["10.1.0.0/16"] },
