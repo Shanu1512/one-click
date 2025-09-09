@@ -18,21 +18,22 @@ resource "aws_security_group_rule" "requester_icmp" {
 }
 
 
-# All protocols
+# Allow all traffic from anywhere to requester SG
 resource "aws_security_group_rule" "requester_all" {
-  type                     = "ingress"
-  protocol                 = "-1"
-  from_port                = 0
-  to_port                  = 0
-  security_group_id        = var.requester_sg_id
-  source_security_group_id = var.accepter_sg_id
+  type              = "ingress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"        # All protocols
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = var.requester_sg_id
 }
 
+# Allow all traffic from anywhere to accepter SG
 resource "aws_security_group_rule" "accepter_all" {
-  type                     = "ingress"
-  protocol                 = "-1"
-  from_port                = 0
-  to_port                  = 0
-  security_group_id        = var.accepter_sg_id
-  source_security_group_id = var.requester_sg_id
+  type              = "ingress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"        # All protocols
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = var.accepter_sg_id
 }
