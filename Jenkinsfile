@@ -13,7 +13,7 @@ pipeline {
             }
         }
 
-        stage('Terraform Init & Reconfigure') {
+        stage('Terraform Init & Plan') {
             steps {
                 dir('terraform') {
                     withCredentials([[
@@ -24,27 +24,8 @@ pipeline {
                     ]]) {
                         sh '''
                             set -e
-                            echo "🔹 Initializing Terraform with -reconfigure..."
                             terraform init -reconfigure
-                        '''
-                    }
-                }
-            }
-        }
-
-        stage('Terraform Plan (Safe Check)') {
-            steps {
-                dir('terraform') {
-                    withCredentials([[
-                        $class: 'AmazonWebServicesCredentialsBinding',
-                        credentialsId: 'aws-credentials-id',
-                        accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-                        secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
-                    ]]) {
-                        sh '''
-                            set -e
-                            echo "🔹 Running Terraform Plan..."
-                            terraform plan -out=tfplan -input=false
+                            terraform plan -out=tfplan
                         '''
                     }
                 }
@@ -70,8 +51,10 @@ pipeline {
                     ]]) {
                         sh '''
                             set -e
-                            echo "🔹 Applying Terraform Plan..."
                             terraform apply -auto-approve tfplan
+                            # Export the new bastion public IP
+                            export BASTION_IP=$(terraform output -raw bastion_public_ip)
+                            echo "BASTION_IP=${BASTION_IP}" > ../bastion_ip.env
                         '''
                     }
                 }
@@ -90,8 +73,10 @@ pipeline {
                     ]) {
                         sh '''
                             set -e
+                            # Load bastion IP from previous stage
+                            source ../bastion_ip.env
                             export ANSIBLE_PYTHON_INTERPRETER=/usr/bin/python3
-                            ansible-inventory -i mysql-infra-setup/inventory/inventory_aws_ec2.yml --list
+                            ansible-inventory -i mysql-infra-setup/inventory/inventory_aws_ec2.yml --list --extra-vars "bastion_ip=${BASTION_IP}"
                         '''
                     }
                 }
@@ -110,9 +95,12 @@ pipeline {
                     ]) {
                         sh '''
                             set -e
+                            # Load bastion IP
+                            source ../bastion_ip.env
                             ansible-playbook -i mysql-infra-setup/inventory/inventory_aws_ec2.yml \
                                 mysql-infra-setup/sql_playbook.yml \
-                                -u ubuntu --private-key $SSH_KEY
+                                -u ubuntu --private-key $SSH_KEY \
+                                --extra-vars "bastion_ip=${BASTION_IP}"
                         '''
                     }
                 }
@@ -138,7 +126,6 @@ pipeline {
                     ]]) {
                         sh '''
                             set -e
-                            echo "🔹 Destroying Terraform Infrastructure..."
                             terraform destroy -auto-approve
                         '''
                     }
