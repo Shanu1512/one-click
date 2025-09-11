@@ -14,7 +14,7 @@ pipeline {
             }
         }
 
-        stage('Terraform Init & Validate & Plan') {
+        stage('Terraform Init, Validate & Plan') {
             steps {
                 dir('terraform') {
                     withCredentials([[
@@ -54,7 +54,6 @@ pipeline {
                         sh '''
                             set -e
                             terraform apply -auto-approve tfplan
-                            # Capture bastion public IP
                             echo "BASTION_IP=$(terraform output -raw bastion_public_ip)" > ../bastion_ip.env
                         '''
                     }
@@ -71,16 +70,14 @@ pipeline {
                     ]) {
                         sh '''
                             set -e
-                            # Read BASTION_IP from file
-                            BASTION_IP=$(cat ../bastion_ip.env | cut -d'=' -f2)
+                            BASTION_IP=$(cut -d= -f2 ../bastion_ip.env)
 
-                            # Wait for SSH to bastion
-                            echo "Waiting for SSH on $BASTION_IP..."
+                            echo "Waiting for SSH on bastion $BASTION_IP..."
                             until nc -zv $BASTION_IP 22 >/dev/null 2>&1; do
                                 echo "SSH not ready, waiting 60s..."
                                 sleep 60
                             done
-                            echo "SSH is ready, proceeding with Ansible playbook..."
+                            echo "SSH ready, running Ansible..."
 
                             ansible-playbook -i mysql-infra-setup/inventory/inventory_aws_ec2.yml \
                                 mysql-infra-setup/sql_playbook.yml \
