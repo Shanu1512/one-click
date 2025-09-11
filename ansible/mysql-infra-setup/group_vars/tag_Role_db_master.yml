@@ -6,6 +6,6 @@ ansible_ssh_common_args: >-
   -o ProxyCommand="ssh -i /var/lib/jenkins/tfkey.pem
                    -o StrictHostKeyChecking=no
                    -o UserKnownHostsFile=/dev/null
-                   -W %h:%p ubuntu@{{ hostvars[groups['tag_Role_bastion'][0]].public_ip_address }}"
+                   -W %h:%p ubuntu@3.95.134.148"
 ansible_become: yes
 ansible_become_method: sudo
