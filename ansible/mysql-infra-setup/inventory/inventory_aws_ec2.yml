@@ -9,10 +9,10 @@ keyed_groups:
 hostnames:
   - private-ip-address
 
-compose:
-  ansible_host: private_ip_address
-  ansible_user: ubuntu
-  ansible_ssh_private_key_file: /var/lib/jenkins/tfkey.pem
+#compose:
+ # ansible_host: private_ip_address
+ # ansible_user: ubuntu
+ # ansible_ssh_private_key_file: /var/lib/jenkins/tfkey.pem
  # ansible_ssh_common_args: >-
   #  -o ProxyCommand="ssh -i /var/lib/jenkins/tfkey.pem -W %h:%p ubuntu@{{ bastion_ip }}"
    # -o StrictHostKeyChecking=no
