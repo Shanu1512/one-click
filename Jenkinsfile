@@ -14,7 +14,7 @@ pipeline {
             }
         }
 
-        stage('Terraform Init & Plan') {
+        stage('Terraform Init & Validate & Plan') {
             steps {
                 dir('terraform') {
                     withCredentials([[
@@ -26,6 +26,7 @@ pipeline {
                         sh '''
                             set -e
                             terraform init -reconfigure
+                            terraform validate
                             terraform plan -out=tfplan
                         '''
                     }
@@ -73,10 +74,10 @@ pipeline {
                             # Read BASTION_IP from file
                             BASTION_IP=$(cat ../bastion_ip.env | cut -d'=' -f2)
 
-                            # Wait for SSH to be ready
+                            # Wait for SSH to bastion
                             echo "Waiting for SSH on $BASTION_IP..."
                             until nc -zv $BASTION_IP 22 >/dev/null 2>&1; do
-                                echo "SSH not ready, waiting 5s..."
+                                echo "SSH not ready, waiting 60s..."
                                 sleep 60
                             done
                             echo "SSH is ready, proceeding with Ansible playbook..."
