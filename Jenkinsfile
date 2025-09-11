@@ -83,7 +83,8 @@ pipeline {
 
                             ansible-playbook -i mysql-infra-setup/inventory/inventory_aws_ec2.yml \
                                 mysql-infra-setup/sql_playbook.yml \
-                                -u ubuntu --private-key "$SSH_KEY"
+                                -u ubuntu --private-key "$SSH_KEY" \
+                                --extra-vars "bastion_ip=${BASTION_IP}
                         '''
                     }
                 }
