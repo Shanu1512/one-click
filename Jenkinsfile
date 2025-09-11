@@ -25,7 +25,7 @@ pipeline {
                     ]]) {
                         sh '''
                             set -e
-                            terraform init -reconfigure
+                            terraform init
                             terraform validate
                         '''
                     }
