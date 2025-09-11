@@ -89,25 +89,28 @@ pipeline {
                     ]) {
                         sh '''
                             set -e
-                            # Read bastion IP
+                        # Read BASTION_IP from file
                             BASTION_IP=$(cut -d= -f2 ../bastion_ip.env)
 
                             echo "Waiting for SSH on bastion $BASTION_IP..."
                             until nc -zv $BASTION_IP 22 >/dev/null 2>&1; do
-                                echo "SSH not ready, retrying in 60s..."
-                                sleep 60
+                            echo "SSH not ready, waiting 60s..."
+                            sleep 60
                             done
                             echo "SSH ready, running Ansible..."
 
+                            export ANSIBLE_HOST_KEY_CHECKING=False
+                            export ANSIBLE_SSH_COMMON_ARGS="-o ProxyCommand=\\"ssh -i $SSH_KEY -W %h:%p ubuntu@$BASTION_IP\\" -o StrictHostKeyChecking=no"
+
                             ansible-playbook -i mysql-infra-setup/inventory/inventory_aws_ec2.yml \
-                                mysql-infra-setup/sql_playbook.yml \
-                                -u ubuntu --private-key "$SSH_KEY" \
-                                --extra-vars "bastion_ip=${BASTION_IP}"
+                            mysql-infra-setup/sql_playbook.yml \
+                            -u ubuntu --private-key "$SSH_KEY"
                         '''
                     }
-                }
-            }
+                 }
+             }
         }
+
 
         stage('Approval for Destroy') {
             steps {
