@@ -13,36 +13,6 @@ pipeline {
                 git branch: 'main', url: 'https://github.com/Shanu1512/one-click.git'
             }
         }
-
-        // 🔹 Approval + Destroy at the start
-        stage('Approval for Initial Destroy') {
-            steps {
-                timeout(time: 30, unit: 'MINUTES') {
-                    input message: '⚠️ Approve Terraform Destroy (Initial Cleanup)?'
-                }
-            }
-        }
-
-        stage('Terraform Destroy (Initial Cleanup)') {
-            steps {
-                dir('terraform') {
-                    withCredentials([[
-                        $class: 'AmazonWebServicesCredentialsBinding',
-                        credentialsId: 'aws-credentials-id',
-                        accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-                        secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
-                    ]]) {
-                        sh '''
-                            set -e
-                            echo "Destroying any leftover infra from previous runs..."
-                            terraform init
-                            terraform destroy -auto-approve || echo "Nothing to destroy"
-                        '''
-                    }
-                }
-            }
-        }
-
         stage('Terraform Init & Validate') {
             steps {
                 dir('terraform') {
