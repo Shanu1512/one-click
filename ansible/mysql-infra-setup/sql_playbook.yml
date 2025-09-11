@@ -3,5 +3,12 @@
   hosts: tag_Role_db_master   # uses Role tag from EC2
   become: true
   gather_facts: yes
+
+  pre_tasks:
+    - name: Wait for private hosts to be reachable via SSH
+      wait_for_connection:
+        timeout: 300
+
   roles:
     - mysql
+
