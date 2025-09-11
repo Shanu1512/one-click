@@ -11,7 +11,7 @@ compose:
   ansible_user: ubuntu
   ansible_ssh_private_key_file: /var/lib/jenkins/tfkey.pem
   ansible_ssh_common_args: >-
-    -o ProxyCommand="ssh -W %h:%p -i /var/lib/jenkins/tfkey.pem ubuntu@{{ bastion_ip }}"
+    -o ProxyCommand="ssh -W %h:%p -i /var/lib/jenkins/tfkey.pem ubuntu@3.95.134.148"
     -o StrictHostKeyChecking=no
 
 
