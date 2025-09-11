@@ -4,7 +4,6 @@ pipeline {
     environment {
         AWS_REGION = 'us-east-1'
         PATH = "/var/lib/jenkins/ansible-venv/bin:${env.PATH}"
-        ANSIBLE_HOST_KEY_CHECKING = 'False'   // 🚀 Disable host checking globally
     }
 
     stages {
@@ -72,7 +71,7 @@ pipeline {
                         sh '''
                             set -e
                             terraform apply -auto-approve tfplan
-                            # Save bastion IP for Ansible
+                            # Capture bastion public IP
                             echo "BASTION_IP=$(terraform output -raw bastion_public_ip)" > ../bastion_ip.env
                         '''
                     }
@@ -89,28 +88,25 @@ pipeline {
                     ]) {
                         sh '''
                             set -e
-                        # Read BASTION_IP from file
                             BASTION_IP=$(cut -d= -f2 ../bastion_ip.env)
-
                             echo "Waiting for SSH on bastion $BASTION_IP..."
                             until nc -zv $BASTION_IP 22 >/dev/null 2>&1; do
-                            echo "SSH not ready, waiting 60s..."
-                            sleep 60
+                                echo "SSH not ready, waiting 60s..."
+                                sleep 60
                             done
                             echo "SSH ready, running Ansible..."
 
                             export ANSIBLE_HOST_KEY_CHECKING=False
-                            export ANSIBLE_SSH_COMMON_ARGS="-o ProxyCommand=\\"ssh -i $SSH_KEY -W %h:%p ubuntu@$BASTION_IP\\" -o StrictHostKeyChecking=no"
+                            export ANSIBLE_SSH_COMMON_ARGS="-o ProxyCommand='ssh -i $SSH_KEY -W %h:%p ubuntu@$BASTION_IP' -o StrictHostKeyChecking=no"
 
                             ansible-playbook -i mysql-infra-setup/inventory/inventory_aws_ec2.yml \
-                            mysql-infra-setup/sql_playbook.yml \
-                            -u ubuntu --private-key "$SSH_KEY"
+                                mysql-infra-setup/sql_playbook.yml \
+                                -u ubuntu --private-key "$SSH_KEY"
                         '''
                     }
-                 }
-             }
+                }
+            }
         }
-
 
         stage('Approval for Destroy') {
             steps {
