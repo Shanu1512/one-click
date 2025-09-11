@@ -77,7 +77,7 @@ pipeline {
                             echo "Waiting for SSH on $BASTION_IP..."
                             until nc -zv $BASTION_IP 22 >/dev/null 2>&1; do
                                 echo "SSH not ready, waiting 5s..."
-                                sleep 5
+                                sleep 60
                             done
                             echo "SSH is ready, proceeding with Ansible playbook..."
 
