@@ -16,7 +16,7 @@ pipeline {
 
         stage('Terraform Init & Validate') {
             steps {
-                dir('Terraform-MySQL-Deploy') {
+                dir('Terraform-MySQL-Deploy/terraform') {
                     withCredentials([[
                         $class: 'AmazonWebServicesCredentialsBinding',
                         credentialsId: 'aws-credentials-id',
@@ -35,9 +35,9 @@ pipeline {
             }
         }
 
-         stage('Terraform Plan') {
+        stage('Terraform Plan') {
             steps {
-                dir('Terraform-MySQL-Deploy') {
+                dir('Terraform-MySQL-Deploy/terraform') {
                     withCredentials([[
                         $class: 'AmazonWebServicesCredentialsBinding',
                         credentialsId: 'aws-credentials-id',
@@ -46,6 +46,7 @@ pipeline {
                     ]]) {
                         sh '''
                             set -e
+                            echo "🔹 Terraform Plan"
                             terraform plan -out=tfplan
                         '''
                     }
@@ -63,7 +64,7 @@ pipeline {
 
         stage('Terraform Apply') {
             steps {
-                dir('Terraform-MySQL-Deploy') {
+                dir('Terraform-MySQL-Deploy/terraform') {
                     withCredentials([[
                         $class: 'AmazonWebServicesCredentialsBinding',
                         credentialsId: 'aws-credentials-id',
@@ -76,16 +77,12 @@ pipeline {
                                     set -e
                                     echo "🔹 Terraform Apply"
                                     terraform apply -auto-approve tfplan
+                                    # Save bastion public IP for Ansible
+                                    echo "BASTION_IP=$(terraform output -raw bastion_public_ip)" > ../bastion_ip.env
                                 '''
                             } catch (err) {
                                 echo "⚠️ Terraform Apply aborted or failed, proceeding with Ansible role."
                             }
-                            // Capture Bastion IP directly
-                            BASTION_IP = sh(
-                                script: 'terraform output -raw bastion_public_ip || echo ""',
-                                returnStdout: true
-                            ).trim()
-                            echo "Bastion IP: ${BASTION_IP}"
                         }
                     }
                 }
@@ -99,12 +96,16 @@ pipeline {
                         sshUserPrivateKey(credentialsId: 'ssh_key', keyFileVariable: 'SSH_KEY'),
                         [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials-id']
                     ]) {
-                        sh """
+                        sh '''
                             set -e
-                            if [ -z "${BASTION_IP}" ]; then
-                                echo "⚠️ Bastion IP not available. Skipping Ansible run."
-                                exit 0
+                            # Read bastion IP
+                            if [ -f ../bastion_ip.env ]; then
+                                BASTION_IP=$(cut -d= -f2 ../bastion_ip.env)
+                            else
+                                echo "BASTION_IP not found, exiting..."
+                                exit 1
                             fi
+
                             echo "Waiting for SSH on bastion $BASTION_IP..."
                             until nc -zv $BASTION_IP 22 >/dev/null 2>&1; do
                                 echo "SSH not ready, waiting 30s..."
@@ -113,14 +114,14 @@ pipeline {
                             echo "SSH ready, running Ansible..."
 
                             export ANSIBLE_HOST_KEY_CHECKING=False
-                            export ANSIBLE_SSH_COMMON_ARGS="-o ProxyCommand='ssh -i \$SSH_KEY -W %h:%p ubuntu@$BASTION_IP' -o StrictHostKeyChecking=no"
+                            export ANSIBLE_SSH_COMMON_ARGS="-o ProxyCommand='ssh -i $SSH_KEY -W %h:%p ubuntu@$BASTION_IP' -o StrictHostKeyChecking=no"
 
                             ansible-playbook -i mysql-infra-setup/inventory/inventory_aws_ec2.yml \
                                              mysql-infra-setup/sql_playbook.yml \
                                              --extra-vars "bastion_ip=${BASTION_IP}" \
                                              -u ubuntu \
-                                             --private-key \$SSH_KEY
-                        """
+                                             --private-key $SSH_KEY
+                        '''
                     }
                 }
             }
