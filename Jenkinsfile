@@ -8,11 +8,48 @@ pipeline {
 
     stages {
 
+        // -----------------------------
+        // Initial Destroy (optional cleanup)
+        // -----------------------------
+        stage('Approval for Initial Destroy') {
+            steps {
+                script {
+                    try {
+                        timeout(time: 30, unit: 'MINUTES') {
+                            input message: '⚠️ Approve Terraform Initial Destroy (cleanup existing infra)?'
+                        }
+                        dir('terraform') {
+                            withCredentials([[
+                                $class: 'AmazonWebServicesCredentialsBinding',
+                                credentialsId: 'aws-credentials-id',
+                                accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                                secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                            ]]) {
+                                sh '''
+                                    set -e
+                                    terraform destroy -auto-approve || echo "Nothing to destroy"
+                                '''
+                            }
+                        }
+                    } catch (err) {
+                        echo "⏭ Initial destroy aborted. Moving to next stage."
+                    }
+                }
+            }
+        }
+
+        // -----------------------------
+        // Checkout Code
+        // -----------------------------
         stage('Checkout Code') {
             steps {
                 git branch: 'main', url: 'https://github.com/Shanu1512/one-click.git'
             }
         }
+
+        // -----------------------------
+        // Terraform Init & Validate
+        // -----------------------------
         stage('Terraform Init & Validate') {
             steps {
                 dir('terraform') {
@@ -32,6 +69,9 @@ pipeline {
             }
         }
 
+        // -----------------------------
+        // Terraform Plan
+        // -----------------------------
         stage('Terraform Plan') {
             steps {
                 dir('terraform') {
@@ -50,6 +90,9 @@ pipeline {
             }
         }
 
+        // -----------------------------
+        // Approval for Apply
+        // -----------------------------
         stage('Approval for Apply') {
             steps {
                 timeout(time: 30, unit: 'MINUTES') {
@@ -58,6 +101,9 @@ pipeline {
             }
         }
 
+        // -----------------------------
+        // Terraform Apply
+        // -----------------------------
         stage('Terraform Apply') {
             steps {
                 dir('terraform') {
@@ -70,7 +116,7 @@ pipeline {
                         sh '''
                             set -e
                             terraform apply -auto-approve tfplan
-                            # Capture bastion public IP
+                            # Capture bastion public IP for Ansible
                             echo "BASTION_IP=$(terraform output -raw bastion_public_ip)" > ../bastion_ip.env
                         '''
                     }
@@ -78,6 +124,9 @@ pipeline {
             }
         }
 
+        // -----------------------------
+        // Configure MySQL with Ansible
+        // -----------------------------
         stage('Configure MySQL with Ansible') {
             steps {
                 dir('ansible') {
@@ -98,8 +147,6 @@ pipeline {
                             export ANSIBLE_HOST_KEY_CHECKING=False
                             export ANSIBLE_SSH_COMMON_ARGS="-o ProxyCommand='ssh -i $SSH_KEY -W %h:%p ubuntu@$BASTION_IP' -o StrictHostKeyChecking=no"
 
-
-
                             ansible-playbook -i mysql-infra-setup/inventory/inventory_aws_ec2.yml \
                                 mysql-infra-setup/sql_playbook.yml \
                                 --extra-vars "bastion_ip=${BASTION_IP}"
@@ -109,30 +156,39 @@ pipeline {
             }
         }
 
-        // 🔹 Approval + Destroy at the end
+        // -----------------------------
+        // Final Destroy (cleanup)
+        // -----------------------------
         stage('Approval for Final Destroy') {
             steps {
-                timeout(time: 30, unit: 'MINUTES') {
-                    input message: '⚠️ Approve Final Terraform Destroy?'
+                script {
+                    try {
+                        timeout(time: 30, unit: 'MINUTES') {
+                            input message: '⚠️ Approve Final Terraform Destroy?'
+                        }
+                        dir('terraform') {
+                            withCredentials([[
+                                $class: 'AmazonWebServicesCredentialsBinding',
+                                credentialsId: 'aws-credentials-id',
+                                accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                                secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                            ]]) {
+                                sh '''
+                                    set -e
+                                    terraform destroy -auto-approve || echo "Nothing to destroy"
+                                '''
+                            }
+                        }
+                    } catch (err) {
+                        echo "⏭ Final destroy aborted. Moving to next stage."
+                    }
                 }
             }
         }
 
-        stage('Terraform Destroy (Final Cleanup)') {
+        stage('Post-Cleanup Stage') {
             steps {
-                dir('terraform') {
-                    withCredentials([[
-                        $class: 'AmazonWebServicesCredentialsBinding',
-                        credentialsId: 'aws-credentials-id',
-                        accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-                        secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
-                    ]]) {
-                        sh '''
-                            set -e
-                            terraform destroy -auto-approve || echo "Nothing to destroy"
-                        '''
-                    }
-                }
+                echo "✅ Pipeline finished. Cleanup stages completed or skipped."
             }
         }
     }
