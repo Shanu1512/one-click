@@ -57,7 +57,9 @@ module "db_sg" {
   ingress_rules = [
     { from_port = 22, to_port = 22, protocol = "tcp", cidr_blocks = ["10.1.0.0/16"] },
     { from_port = 3306, to_port = 3306, protocol = "tcp", cidr_blocks = ["10.1.0.0/16"] },
-    { from_port = 80, to_port = 80, protocol = "tcp", cidr_blocks = ["10.1.0.0/16"] }
+    { from_port = 80, to_port = 80, protocol = "tcp", cidr_blocks = ["10.1.0.0/16"] },
+     # New rule: allow SSH from Bastion security group
+    { from_port = 22, to_port = 22, protocol = "tcp", security_groups = [module.bastion_sg.sg_id] }
   ]
   egress_rules = [
     { from_port = 0, to_port = 0, protocol = "-1", cidr_blocks = ["0.0.0.0/0"] }
