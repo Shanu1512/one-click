@@ -25,7 +25,9 @@ pipeline {
                     ]]) {
                         sh '''
                             set -e
+                            echo "🔹 Terraform Init"
                             terraform init
+                            echo "🔹 Terraform Validate"
                             terraform validate
                         '''
                     }
@@ -44,6 +46,7 @@ pipeline {
                     ]]) {
                         sh '''
                             set -e
+                            echo "🔹 Terraform Plan"
                             terraform plan -out=tfplan
                         '''
                     }
@@ -69,9 +72,8 @@ pipeline {
                         secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
                     ]]) {
                         script {
-                            def applyResult = sh(script: 'terraform apply -auto-approve tfplan', returnStatus: true)
-                            // Capture bastion IP only if apply succeeded
-                            if (applyResult == 0) {
+                            def applyStatus = sh(script: 'terraform apply -auto-approve tfplan', returnStatus: true)
+                            if (applyStatus == 0) {
                                 sh 'echo "BASTION_IP=$(terraform output -raw bastion_public_ip)" > ../bastion_ip.env'
                             } else {
                                 echo "Terraform apply aborted or failed. Proceeding to Ansible."
@@ -90,13 +92,14 @@ pipeline {
                     ]) {
                         sh '''
                             set -e
+                            # Get bastion IP dynamically
                             BASTION_IP=$(cut -d= -f2 ../bastion_ip.env || echo "3.86.83.184")
-                            echo "Waiting for SSH on bastion $BASTION_IP..."
+                            echo "⏳ Waiting for SSH on bastion $BASTION_IP..."
                             until nc -zv $BASTION_IP 22 >/dev/null 2>&1; do
                                 echo "SSH not ready, waiting 15s..."
                                 sleep 15
                             done
-                            echo "SSH ready, running Ansible..."
+                            echo "✅ SSH ready, running Ansible..."
 
                             export ANSIBLE_HOST_KEY_CHECKING=False
                             export ANSIBLE_SSH_COMMON_ARGS="-o ProxyCommand='ssh -i $SSH_KEY -W %h:%p ubuntu@$BASTION_IP' -o StrictHostKeyChecking=no"
@@ -131,13 +134,13 @@ pipeline {
                     ]]) {
                         sh '''
                             set -e
+                            echo "💥 Destroying Terraform Infrastructure..."
                             terraform destroy -auto-approve || echo "Nothing to destroy"
                         '''
                     }
                 }
             }
         }
-
     }
 
     post {
