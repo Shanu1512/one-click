@@ -16,7 +16,7 @@ pipeline {
 
         stage('Terraform Init & Validate') {
             steps {
-                dir('Terraform-MySQL-Deploy/terraform') {
+                dir('terraform') {
                     withCredentials([[
                         $class: 'AmazonWebServicesCredentialsBinding',
                         credentialsId: 'aws-credentials-id',
@@ -37,7 +37,7 @@ pipeline {
 
         stage('Terraform Plan') {
             steps {
-                dir('Terraform-MySQL-Deploy/terraform') {
+                dir('terraform') {
                     withCredentials([[
                         $class: 'AmazonWebServicesCredentialsBinding',
                         credentialsId: 'aws-credentials-id',
@@ -64,7 +64,7 @@ pipeline {
 
         stage('Terraform Apply') {
             steps {
-                dir('Terraform-MySQL-Deploy/terraform') {
+                dir('terraform') {
                     withCredentials([[
                         $class: 'AmazonWebServicesCredentialsBinding',
                         credentialsId: 'aws-credentials-id',
@@ -91,7 +91,7 @@ pipeline {
 
         stage('Configure MySQL with Ansible') {
             steps {
-                dir('Terraform-MySQL-Deploy/ansible') {
+                dir('ansible') {
                     withCredentials([
                         sshUserPrivateKey(credentialsId: 'ssh_key', keyFileVariable: 'SSH_KEY'),
                         [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials-id']
@@ -137,7 +137,7 @@ pipeline {
 
         stage('Terraform Destroy (Final Cleanup)') {
             steps {
-                dir('Terraform-MySQL-Deploy/terraform') {
+                dir('terraform') {
                     withCredentials([[
                         $class: 'AmazonWebServicesCredentialsBinding',
                         credentialsId: 'aws-credentials-id',
