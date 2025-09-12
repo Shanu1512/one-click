@@ -98,6 +98,7 @@ pipeline {
                             export ANSIBLE_HOST_KEY_CHECKING=False
                             export ANSIBLE_SSH_COMMON_ARGS="-o ProxyCommand=\"ssh -i $SSH_KEY -W %h:%p ubuntu@$BASTION_IP\" -o StrictHostKeyChecking=no"
 
+
                             ansible-playbook -i mysql-infra-setup/inventory/inventory_aws_ec2.yml \
                                 mysql-infra-setup/sql_playbook.yml \
                                 --extra-vars "bastion_ip=${BASTION_IP}"
