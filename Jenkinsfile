@@ -8,51 +8,15 @@ pipeline {
 
     stages {
 
-        // -----------------------------
-        // Initial Destroy (optional cleanup)
-        // -----------------------------
-        stage('Approval for Initial Destroy') {
-            steps {
-                script {
-                    try {
-                        timeout(time: 30, unit: 'MINUTES') {
-                            input message: '⚠️ Approve Terraform Initial Destroy (cleanup existing infra)?'
-                        }
-                        dir('terraform') {
-                            withCredentials([[
-                                $class: 'AmazonWebServicesCredentialsBinding',
-                                credentialsId: 'aws-credentials-id',
-                                accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-                                secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
-                            ]]) {
-                                sh '''
-                                    set -e
-                                    terraform destroy -auto-approve || echo "Nothing to destroy"
-                                '''
-                            }
-                        }
-                    } catch (err) {
-                        echo "⏭ Initial destroy aborted. Moving to next stage."
-                    }
-                }
-            }
-        }
-
-        // -----------------------------
-        // Checkout Code
-        // -----------------------------
         stage('Checkout Code') {
             steps {
                 git branch: 'main', url: 'https://github.com/Shanu1512/one-click.git'
             }
         }
 
-        // -----------------------------
-        // Terraform Init & Validate
-        // -----------------------------
         stage('Terraform Init & Validate') {
             steps {
-                dir('terraform') {
+                dir('Terraform-MySQL-Deploy/terraform') {
                     withCredentials([[
                         $class: 'AmazonWebServicesCredentialsBinding',
                         credentialsId: 'aws-credentials-id',
@@ -69,12 +33,9 @@ pipeline {
             }
         }
 
-        // -----------------------------
-        // Terraform Plan
-        // -----------------------------
         stage('Terraform Plan') {
             steps {
-                dir('terraform') {
+                dir('Terraform-MySQL-Deploy/terraform') {
                     withCredentials([[
                         $class: 'AmazonWebServicesCredentialsBinding',
                         credentialsId: 'aws-credentials-id',
@@ -90,10 +51,7 @@ pipeline {
             }
         }
 
-        // -----------------------------
-        // Approval for Apply
-        // -----------------------------
-        stage('Approval for Apply') {
+        stage('Approval for Terraform Apply') {
             steps {
                 timeout(time: 30, unit: 'MINUTES') {
                     input message: '✅ Approve Terraform Apply?'
@@ -101,12 +59,70 @@ pipeline {
             }
         }
 
-        // -----------------------------
-        // Terraform Apply
-        // -----------------------------
         stage('Terraform Apply') {
             steps {
-                dir('terraform') {
+                dir('Terraform-MySQL-Deploy/terraform') {
+                    withCredentials([[
+                        $class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: 'aws-credentials-id',
+                        accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                        secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                    ]]) {
+                        script {
+                            def applyResult = sh(script: 'terraform apply -auto-approve tfplan', returnStatus: true)
+                            // Capture bastion IP only if apply succeeded
+                            if (applyResult == 0) {
+                                sh 'echo "BASTION_IP=$(terraform output -raw bastion_public_ip)" > ../bastion_ip.env'
+                            } else {
+                                echo "Terraform apply aborted or failed. Proceeding to Ansible."
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Configure MySQL with Ansible') {
+            steps {
+                dir('Terraform-MySQL-Deploy/ansible') {
+                    withCredentials([
+                        sshUserPrivateKey(credentialsId: 'ssh_key', keyFileVariable: 'SSH_KEY')
+                    ]) {
+                        sh '''
+                            set -e
+                            BASTION_IP=$(cut -d= -f2 ../bastion_ip.env || echo "3.86.83.184")
+                            echo "Waiting for SSH on bastion $BASTION_IP..."
+                            until nc -zv $BASTION_IP 22 >/dev/null 2>&1; do
+                                echo "SSH not ready, waiting 15s..."
+                                sleep 15
+                            done
+                            echo "SSH ready, running Ansible..."
+
+                            export ANSIBLE_HOST_KEY_CHECKING=False
+                            export ANSIBLE_SSH_COMMON_ARGS="-o ProxyCommand='ssh -i $SSH_KEY -W %h:%p ubuntu@$BASTION_IP' -o StrictHostKeyChecking=no"
+
+                            ansible-playbook -i mysql-infra-setup/inventory/inventory_aws_ec2.yml \
+                                             mysql-infra-setup/sql_playbook.yml \
+                                             --extra-vars "bastion_ip=${BASTION_IP}" \
+                                             -u ubuntu \
+                                             --private-key $SSH_KEY
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Approval for Terraform Destroy') {
+            steps {
+                timeout(time: 30, unit: 'MINUTES') {
+                    input message: '⚠️ Approve Final Terraform Destroy?'
+                }
+            }
+        }
+
+        stage('Terraform Destroy (Final Cleanup)') {
+            steps {
+                dir('Terraform-MySQL-Deploy/terraform') {
                     withCredentials([[
                         $class: 'AmazonWebServicesCredentialsBinding',
                         credentialsId: 'aws-credentials-id',
@@ -115,82 +131,13 @@ pipeline {
                     ]]) {
                         sh '''
                             set -e
-                            terraform apply -auto-approve tfplan
-                            # Capture bastion public IP for Ansible
-                            echo "BASTION_IP=$(terraform output -raw bastion_public_ip)" > ../bastion_ip.env
+                            terraform destroy -auto-approve || echo "Nothing to destroy"
                         '''
                     }
                 }
             }
         }
 
-        // -----------------------------
-        // Configure MySQL with Ansible
-        // -----------------------------
-        stage('Configure MySQL with Ansible') {
-            steps {
-                dir('ansible') {
-                    withCredentials([
-                        sshUserPrivateKey(credentialsId: 'ssh_key', keyFileVariable: 'SSH_KEY'),
-                        [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials-id']
-                    ]) {
-                        sh '''
-                            set -e
-                            BASTION_IP=$(cut -d= -f2 ../bastion_ip.env)
-                            echo "Waiting for SSH on bastion $BASTION_IP..."
-                            until nc -zv $BASTION_IP 22 >/dev/null 2>&1; do
-                                echo "SSH not ready, waiting 60s..."
-                                sleep 60
-                            done
-                            echo "SSH ready, running Ansible..."
-
-                            export ANSIBLE_HOST_KEY_CHECKING=False
-                            export ANSIBLE_SSH_COMMON_ARGS="-o ProxyCommand='ssh -i $SSH_KEY -W %h:%p ubuntu@$BASTION_IP' -o StrictHostKeyChecking=no"
-
-                            ansible-playbook -i mysql-infra-setup/inventory/inventory_aws_ec2.yml \
-                                mysql-infra-setup/sql_playbook.yml \
-                                --extra-vars "bastion_ip=${BASTION_IP}"
-                        '''
-                    }
-                }
-            }
-        }
-
-        // -----------------------------
-        // Final Destroy (cleanup)
-        // -----------------------------
-        stage('Approval for Final Destroy') {
-            steps {
-                script {
-                    try {
-                        timeout(time: 30, unit: 'MINUTES') {
-                            input message: '⚠️ Approve Final Terraform Destroy?'
-                        }
-                        dir('terraform') {
-                            withCredentials([[
-                                $class: 'AmazonWebServicesCredentialsBinding',
-                                credentialsId: 'aws-credentials-id',
-                                accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-                                secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
-                            ]]) {
-                                sh '''
-                                    set -e
-                                    terraform destroy -auto-approve || echo "Nothing to destroy"
-                                '''
-                            }
-                        }
-                    } catch (err) {
-                        echo "⏭ Final destroy aborted. Moving to next stage."
-                    }
-                }
-            }
-        }
-
-        stage('Post-Cleanup Stage') {
-            steps {
-                echo "✅ Pipeline finished. Cleanup stages completed or skipped."
-            }
-        }
     }
 
     post {
