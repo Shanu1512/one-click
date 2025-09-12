@@ -1,2 +1,5 @@
 ansible_become: yes
 ansible_become_method: sudo
+ansible_ssh_common_args: >-
+  -o StrictHostKeyChecking=no
+  -o ProxyCommand="ssh -i /var/lib/jenkins/tfkey.pem -W %h:%p ubuntu@{{ bastion_ip }}"
