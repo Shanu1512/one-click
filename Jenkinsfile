@@ -16,7 +16,7 @@ pipeline {
 
         stage('Terraform Init & Validate') {
             steps {
-                dir('Terraform-MySQL-Deploy/terraform') {
+                dir('Terraform-MySQL-Deploy') {
                     withCredentials([[
                         $class: 'AmazonWebServicesCredentialsBinding',
                         credentialsId: 'aws-credentials-id',
@@ -37,7 +37,7 @@ pipeline {
 
         stage('Terraform Plan') {
             steps {
-                dir('Terraform-MySQL-Deploy/terraform') {
+                dir('Terraform-MySQL-Deploy') {
                     withCredentials([[
                         $class: 'AmazonWebServicesCredentialsBinding',
                         credentialsId: 'aws-credentials-id',
@@ -64,7 +64,7 @@ pipeline {
 
         stage('Terraform Apply') {
             steps {
-                dir('Terraform-MySQL-Deploy/terraform') {
+                dir('Terraform-MySQL-Deploy') {
                     withCredentials([[
                         $class: 'AmazonWebServicesCredentialsBinding',
                         credentialsId: 'aws-credentials-id',
