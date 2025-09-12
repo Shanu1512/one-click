@@ -29,7 +29,23 @@ pipeline {
                             terraform init
                             echo "🔹 Terraform Validate"
                             terraform validate
-                            echo "🔹 Terraform Plan"
+                        '''
+                    }
+                }
+            }
+        }
+
+         stage('Terraform Plan') {
+            steps {
+                dir('Terraform-MySQL-Deploy') {
+                    withCredentials([[
+                        $class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: 'aws-credentials-id',
+                        accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                        secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                    ]]) {
+                        sh '''
+                            set -e
                             terraform plan -out=tfplan
                         '''
                     }
